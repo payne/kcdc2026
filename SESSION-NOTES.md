@@ -192,3 +192,55 @@ working tree is still untracked.
 rebuild `kcdc.db` from scratch — it's a full rebuild, not an incremental
 update, so it's always safe to just delete-and-regenerate rather than trying
 to diff/patch the db in place.
+
+## `docs/` — static web app (GitHub Pages root)
+
+Added `docs/index.html` + `docs/app.js` + `docs/style.css`, a zero-dependency
+vanilla-JS static site (no build step, no framework) for browsing the
+sessions/speakers/videos data. Lives in `docs/` specifically so a repo owner
+can point GitHub Pages at "main branch, /docs folder" with no extra config.
+
+**Routing:** hash-based (`#/sessions`, `#/sessions/:id`, `#/speakers`,
+`#/speakers/:name`, `#/videos`, `#/explore`) so every filtered/sorted view is
+a real bookmarkable URL — filter and sort state live in the query string
+(e.g. `#/sessions?q=cloud&day=2026-09-09&sort=title&dir=asc`), not in memory,
+so there are no popups/modals for filtering. `localStorage` (key
+`kcdc2026:lastView`) stores the current hash on every render; on a bare page
+load with no `location.hash`, it redirects to the saved value (or
+`#/sessions` if none) — so reloading/reopening the site returns to whatever
+view you were last on.
+
+**Data:** fetches `docs/data/kcdc-2026-sessions.json` and
+`docs/data/youtubes.json` client-side at startup and joins them in memory
+(no server, no build step). **These are copies** of the root-level files —
+`docs/` has to be self-contained for GitHub Pages to serve it, so after
+regenerating the root JSON/db, re-copy into `docs/data/`:
+```
+cp kcdc-2026-sessions.json youtubes.json docs/data/
+python3 build_db.py --output docs/data/kcdc.db --force
+```
+
+**`#/explore` route:** links out to
+[datasette-lite](https://github.com/simonw/datasette-lite) (Simon Willison's
+in-browser Datasette, via Pyodide/WebAssembly) pointed at
+`docs/data/kcdc.db`'s absolute URL, plus deep links to each table and a
+canned example SQL query. Also has an "embedded" iframe version of
+datasette-lite on the same page — **deliberately not auto-loaded**; it's
+behind a "Load embedded explorer" button, because it pulls down a full Python
+runtime (tens of MB) the moment it's created. An earlier version auto-loaded
+the iframe and it made the tab visibly hang during testing.
+
+**Known local-testing limitation (not a bug in the app):** `python3 -m
+http.server` sends no CORS headers and doesn't honor `Range` requests, so
+`#/explore`'s datasette-lite integration will hang forever when tested with
+`python3 -m http.server` — confirmed via `curl -H "Range: ..."` returning a
+plain `200` with no `Access-Control-Allow-Origin` header at all. GitHub Pages
+(Fastly-fronted) sends permissive CORS and full Range support for every
+static file, so this should work once actually deployed there; it just can't
+be verified against the plain stdlib dev server. If testing locally again,
+use a server that adds `Access-Control-Allow-Origin: *` and Range support
+(e.g. `npx http-server --cors`), not bare `python3 -m http.server`.
+
+Every other route/page (sessions/speakers/videos list + detail, filtering,
+sorting, hash-based bookmarking, localStorage last-view) was verified working
+end-to-end in a real Chrome tab via the claude-in-chrome skill.
