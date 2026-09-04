@@ -172,6 +172,15 @@ function render() {
   safeSetItem(STORAGE_KEY, "#" + raw);
   updateNavHighlight(segments[0]);
 
+  // Full re-renders replace the DOM, so a focused input (e.g. the search
+  // box, typing triggers a re-render on every debounced keystroke) would
+  // otherwise lose focus. Capture it here and restore it after rendering.
+  const active = document.activeElement;
+  const focusState =
+    active && active.id === "f-q"
+      ? { id: active.id, selectionStart: active.selectionStart, selectionEnd: active.selectionEnd }
+      : null;
+
   try {
     if (segments[0] === "sessions" && segments[1]) {
       renderSessionDetail(segments[1]);
@@ -193,6 +202,16 @@ function render() {
       String(err.message || err)
     )}</p>`;
     console.error(err);
+  }
+
+  if (focusState) {
+    const el = document.getElementById(focusState.id);
+    if (el) {
+      el.focus();
+      if (typeof el.setSelectionRange === "function") {
+        el.setSelectionRange(focusState.selectionStart, focusState.selectionEnd);
+      }
+    }
   }
 }
 
