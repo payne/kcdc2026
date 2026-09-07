@@ -18,6 +18,7 @@ import argparse
 import hashlib
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 DATA_FILES = ["kcdc-2026-sessions.json", "youtubes.json", "kcdc.db"]
@@ -62,6 +63,7 @@ def main() -> int:
     version = {
         "dataVersion": data_combined.hexdigest()[:16],
         "appVersion": app_combined.hexdigest()[:16],
+        "builtAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "files": files,
     }
 

@@ -309,6 +309,8 @@ function render() {
       renderVideosPage(params);
     } else if (segments[0] === "explore") {
       renderExplorePage();
+    } else if (segments[0] === "about") {
+      renderAboutPage();
     } else {
       renderNotFound(raw);
     }
@@ -557,7 +559,7 @@ function renderSessionsPage(params) {
       label: "Title",
       sortable: true,
       sortValue: (s) => s.title,
-      render: (s) => `<a href="#/sessions/${encodeURIComponent(s.id)}">${escapeHtml(s.title)}</a>`,
+      render: (s) => `<a href="#/sessions/${encodeURIComponent(s.id)}">${escapeHtml(s.title)}</a>${videoCountLinkHtml(s)}`,
     },
     {
       key: "speakers",
@@ -567,13 +569,6 @@ function renderSessionsPage(params) {
       render: (s) => speakerLinksHtml(s.speakers),
     },
     { key: "room", label: "Room", sortable: true, sortValue: (s) => s.room, render: (s) => escapeHtml(s.room) },
-    {
-      key: "hasVideo",
-      label: "Video",
-      sortable: true,
-      sortValue: (s) => (s.hasVideo ? 1 : 0),
-      render: (s) => (s.hasVideo ? `<span class="pill">${s.matches.length} match${s.matches.length > 1 ? "es" : ""}</span>` : `<span class="pill dim">none</span>`),
-    },
   ];
 
   const resultCount = renderTable(app, {
@@ -650,6 +645,14 @@ function renderMatchList(matches, { showSpeaker = false } = {}) {
     </div>`
     )
     .join("");
+}
+
+function videoCountLinkHtml(session) {
+  if (!session.hasVideo) return "";
+  const count = session.matches.length;
+  return `<br><a class="video-count-link muted" href="#/sessions/${encodeURIComponent(session.id)}">${count} video${
+    count === 1 ? "" : "s"
+  }</a>`;
 }
 
 function speakerLinksHtml(names) {
@@ -964,6 +967,58 @@ ORDER BY s.starts_at;</code>
 }
 
 // ---------------------------------------------------------------------
+// About
+// ---------------------------------------------------------------------
+
+function renderAboutPage() {
+  app.innerHTML = `
+    <div class="page-title"><h1>About</h1></div>
+    <p>A static, no-backend browser for the KCDC 2026 session schedule.</p>
+    <div class="detail-card" id="about-updated"><p class="muted">Checking when this app was last updated&hellip;</p></div>
+    <button type="button" class="btn secondary" id="full-reload-btn">Completely reload app</button>
+    <p class="muted" style="margin-top:0.5rem;">Clears this app's cached files and service worker, then reloads everything fresh from the network.</p>
+  `;
+
+  document.getElementById("full-reload-btn").addEventListener("click", (e) => {
+    e.target.disabled = true;
+    e.target.textContent = "Reloading…";
+    fullReload();
+  });
+
+  fetch(VERSION_URL, { cache: "no-store" })
+    .then((r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    })
+    .then((v) => {
+      const slot = document.getElementById("about-updated");
+      if (!slot) return; // user navigated away before this resolved
+      slot.innerHTML = v.builtAt
+        ? `<strong>Last updated:</strong> ${escapeHtml(formatDateTime(v.builtAt))}`
+        : `<span class="muted">Update time isn't available yet.</span>`;
+    })
+    .catch(() => {
+      const slot = document.getElementById("about-updated");
+      if (slot) slot.innerHTML = `<span class="muted">Couldn't check the update time right now.</span>`;
+    });
+}
+
+async function fullReload() {
+  try {
+    if ("caches" in window) {
+      const names = await caches.keys();
+      await Promise.all(names.map((n) => caches.delete(n)));
+    }
+    if ("serviceWorker" in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    }
+  } finally {
+    location.reload();
+  }
+}
+
+// ---------------------------------------------------------------------
 // Not found
 // ---------------------------------------------------------------------
 
@@ -1001,6 +1056,23 @@ function formatDayLong(dayKey) {
     return d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
   } catch (e) {
     return dayKey;
+  }
+}
+
+function formatDateTime(iso) {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch (e) {
+    return iso;
   }
 }
 

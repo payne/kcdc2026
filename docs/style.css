@@ -286,6 +286,9 @@ tbody tr:hover { background: var(--row-hover); }
 
 .muted { color: var(--fg-muted); }
 
+.video-count-link { font-size: 0.78rem; text-decoration: none; }
+.video-count-link:hover { text-decoration: underline; }
+
 .detail-card {
   border: 1px solid var(--border);
   border-radius: 10px;
