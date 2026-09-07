@@ -214,11 +214,38 @@ view you were last on.
 `docs/data/youtubes.json` client-side at startup and joins them in memory
 (no server, no build step). **These are copies** of the root-level files —
 `docs/` has to be self-contained for GitHub Pages to serve it, so after
-regenerating the root JSON/db, re-copy into `docs/data/`:
+regenerating the root JSON/db, re-copy into `docs/data/` and regenerate the
+version marker (last step, since it hashes everything else):
 ```
 cp kcdc-2026-sessions.json youtubes.json docs/data/
 python3 build_db.py --output docs/data/kcdc.db --force
+python3 build_version.py
 ```
+
+**Offline support:** `docs/sw.js` is a service worker (registered from
+`app.js` on load) that cache-first-serves every same-origin GET — the app
+shell (`index.html`, `app.js`, `style.css`) is precached on install, and the
+data files get cached the first time they're fetched. Once someone has
+loaded the site once with a connection, it keeps working with no
+connection at all (e.g. spotty conference wifi).
+
+**Update marker (`docs/data/version.json`):** a few-hundred-byte file
+(`build_version.py`) holding a short hash per data file plus a combined
+`appVersion` hash of the shell files. Re-downloading the ~370KB of session/
+video JSON on every page load just to check "did anything change?" would
+waste mobile data, so instead `app.js`'s `checkForUpdates()` fetches only
+this marker (bypassing the cache to force a real network round-trip),
+compares it against the last-seen copy in `localStorage`
+(`kcdc2026:version`), and only evicts + re-fetches the *specific* data
+file(s) whose hash actually changed. An `appVersion` change (the shell
+itself changed) surfaces as a small "refresh to update" toast instead of
+an auto-reload, since a full-page reload mid-interaction would be rude.
+This runs once after the initial load and again on the browser's `online`
+event, and fails silently when there's no connection — the marker check
+itself is best-effort, never blocking. **Whenever the data or app shell
+changes, `build_version.py` must be re-run** or clients will never notice
+the update; it's cheap enough to always run as the last step of the deploy
+copy above.
 
 **`#/explore` route:** links out to
 [datasette-lite](https://github.com/simonw/datasette-lite) (Simon Willison's

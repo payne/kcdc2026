@@ -11,9 +11,15 @@
  * ------------------------------------------------------------------- */
 
 const STORAGE_KEY = "kcdc2026:lastView";
+const VERSION_STORAGE_KEY = "kcdc2026:version";
 const DATA_SESSIONS_URL = "data/kcdc-2026-sessions.json";
 const DATA_YOUTUBES_URL = "data/youtubes.json";
 const DB_PATH = "data/kcdc.db";
+const VERSION_URL = "data/version.json";
+// Must match CACHE_NAME in sw.js — this app reaches into the same Cache
+// Storage bucket the service worker uses, so it can evict one stale entry
+// (e.g. just kcdc-2026-sessions.json) instead of the SW ever guessing.
+const CACHE_NAME = "kcdc2026-v1";
 
 const app = document.getElementById("app");
 
@@ -23,6 +29,12 @@ let MODEL = null;
 // ---------------------------------------------------------------------
 // Bootstrap
 // ---------------------------------------------------------------------
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch((err) => console.error("Service worker registration failed:", err));
+  });
+}
 
 Promise.all([
   fetch(DATA_SESSIONS_URL).then((r) => {
@@ -42,6 +54,8 @@ Promise.all([
     }
     window.addEventListener("hashchange", render);
     render();
+    checkForUpdates();
+    window.addEventListener("online", checkForUpdates);
   })
   .catch((err) => {
     app.innerHTML = `<p class="error">Couldn't load session data: ${escapeHtml(
@@ -49,6 +63,107 @@ Promise.all([
     )}<br>If you opened this file directly (file://), serve it over HTTP instead, e.g.
     <code>python3 -m http.server</code> from the <code>docs/</code> folder.</p>`;
   });
+
+// ---------------------------------------------------------------------
+// Update check — polls the tiny data/version.json marker (a few hundred
+// bytes) instead of blindly re-downloading the much larger data files on
+// every load. Only files whose hash actually changed get re-fetched.
+// ---------------------------------------------------------------------
+
+let updateCheckInFlight = false;
+
+async function checkForUpdates() {
+  if (updateCheckInFlight) return; // e.g. the initial call and an `online` event landing back to back
+  updateCheckInFlight = true;
+  try {
+    await runUpdateCheck();
+  } finally {
+    updateCheckInFlight = false;
+  }
+}
+
+async function runUpdateCheck() {
+  let fresh;
+  try {
+    if ("caches" in window) {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.delete(VERSION_URL); // force a real network check, not the SW's cached copy
+    }
+    const res = await fetch(VERSION_URL, { cache: "no-store" });
+    if (!res.ok) return;
+    fresh = await res.json();
+  } catch (e) {
+    return; // offline, or the marker file isn't deployed yet — nothing to do
+  }
+
+  const previousRaw = safeGetItem(VERSION_STORAGE_KEY);
+  const previous = previousRaw ? JSON.parse(previousRaw) : null;
+
+  if (previous && previous.appVersion !== fresh.appVersion) {
+    showToast("app-update", "An updated version of this app is available. Refresh to load it.", { refresh: true });
+  }
+
+  if (previous) {
+    const changedFiles = Object.keys(fresh.files || {}).filter((name) => fresh.files[name] !== previous.files?.[name]);
+    if (changedFiles.length) {
+      await reloadChangedData(changedFiles);
+    }
+  }
+
+  safeSetItem(VERSION_STORAGE_KEY, JSON.stringify(fresh));
+}
+
+async function reloadChangedData(changedFileNames) {
+  const urlFor = { "kcdc-2026-sessions.json": DATA_SESSIONS_URL, "youtubes.json": DATA_YOUTUBES_URL };
+  const urlsToRefresh = changedFileNames.map((name) => urlFor[name]).filter(Boolean);
+  if (!urlsToRefresh.length) return; // only kcdc.db changed — that's fetched fresh on demand from #/explore
+
+  try {
+    if ("caches" in window) {
+      const cache = await caches.open(CACHE_NAME);
+      await Promise.all(urlsToRefresh.map((url) => cache.delete(url)));
+    }
+    const [sessionsData, youtubesData] = await Promise.all(
+      [DATA_SESSIONS_URL, DATA_YOUTUBES_URL].map((url) => fetch(url).then((r) => r.json()))
+    );
+    MODEL = buildModel(sessionsData, youtubesData);
+    render();
+    showToast("data-update", "Session data updated.");
+  } catch (e) {
+    console.error("Failed to reload updated data:", e);
+  }
+}
+
+// `kind` scopes replacement to toasts of the same kind, so an unread
+// "refresh for a new app version" prompt (sticky, needs a click) can't get
+// silently clobbered by a same-tick "data updated" notice (auto-dismisses).
+function showToast(kind, message, { refresh = false } = {}) {
+  const existing = document.querySelector(`.update-toast[data-kind="${kind}"]`);
+  if (existing) existing.remove();
+
+  const toast = document.createElement("div");
+  toast.className = "update-toast";
+  toast.dataset.kind = kind;
+  toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
+  if (refresh) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn";
+    btn.textContent = "Refresh";
+    btn.addEventListener("click", () => location.reload());
+    toast.appendChild(btn);
+  }
+  const dismiss = document.createElement("button");
+  dismiss.type = "button";
+  dismiss.className = "update-toast-dismiss";
+  dismiss.setAttribute("aria-label", "Dismiss");
+  dismiss.textContent = "×";
+  dismiss.addEventListener("click", () => toast.remove());
+  toast.appendChild(dismiss);
+
+  document.body.appendChild(toast);
+  if (!refresh) setTimeout(() => toast.remove(), 6000);
+}
 
 function safeGetItem(key) {
   try {

@@ -379,3 +379,42 @@ code { padding: 0.1rem 0.35rem; font-size: 0.85em; }
 }
 
 .query-links { display: flex; flex-direction: column; gap: 0.4rem; margin: 0.5rem 0 1rem; }
+
+.update-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 1.25rem;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: calc(100vw - 2rem);
+  background: var(--bg-alt);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem 0.6rem 1rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  font-size: 0.88rem;
+}
+
+/* Stack a second toast (e.g. data-update) above a sticky one (app-update)
+   instead of overlapping it — see the .update-toast[data-kind] selector in
+   showToast(). */
+.update-toast:not(:last-of-type) {
+  bottom: calc(1.25rem + 3.2rem);
+}
+
+.update-toast .btn { padding: 0.3rem 0.7rem; font-size: 0.82rem; white-space: nowrap; }
+
+.update-toast-dismiss {
+  all: unset;
+  cursor: pointer;
+  color: var(--fg-muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.1rem 0.3rem;
+}
+
+.update-toast-dismiss:hover { color: var(--fg); }
