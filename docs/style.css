@@ -33,50 +33,6 @@
 
 * { box-sizing: border-box; }
 
-.github-ribbon {
-  position: fixed;
-  top: 0;
-  right: 0;
-  width: 160px;
-  height: 160px;
-  overflow: hidden;
-  z-index: 100;
-  pointer-events: none;
-}
-
-.github-ribbon a {
-  position: absolute;
-  top: 32px;
-  right: -38px;
-  display: block;
-  width: 170px;
-  padding: 0.35rem 0;
-  background: var(--accent);
-  color: var(--accent-fg);
-  text-align: center;
-  text-decoration: none;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
-  transform: rotate(45deg);
-  pointer-events: auto;
-}
-
-.github-ribbon a:hover {
-  filter: brightness(1.1);
-}
-
-@media (max-width: 480px) {
-  .github-ribbon { width: 120px; height: 120px; }
-  .github-ribbon a {
-    top: 22px;
-    right: -34px;
-    width: 130px;
-    font-size: 0.68rem;
-  }
-}
-
 html, body {
   margin: 0;
   padding: 0;
@@ -283,6 +239,21 @@ tbody tr:hover { background: var(--row-hover); }
 .tag-list { display: flex; flex-wrap: wrap; gap: 0.3rem; }
 
 .speaker-links a, .session-links a { display: inline-block; }
+
+.speaker-cell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.session-room {
+  margin-top: auto;
+  padding-top: 0.4rem;
+  font-size: 0.78rem;
+}
+
+tbody tr.row-stripe-b { background: var(--bg-alt); }
+tbody tr.row-stripe-b:hover { background: var(--row-hover); }
 
 .muted { color: var(--fg-muted); }
 

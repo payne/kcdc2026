@@ -401,11 +401,22 @@ function renderTable(container, opts) {
     })
     .join("");
 
+  let stripeOn = false;
+  let prevStripeKey;
   const tbody = sorted
-    .map((row) => {
+    .map((row, i) => {
       const href = opts.rowHref ? opts.rowHref(row) : null;
       const cells = columns.map((c) => `<td>${c.render(row)}</td>`).join("");
-      return `<tr${href ? ` class="clickable-row" data-href="${href}"` : ""}>${cells}</tr>`;
+      const classes = [];
+      if (href) classes.push("clickable-row");
+      if (opts.stripeKey) {
+        const key = opts.stripeKey(row);
+        if (i > 0 && key !== prevStripeKey) stripeOn = !stripeOn;
+        prevStripeKey = key;
+        if (stripeOn) classes.push("row-stripe-b");
+      }
+      const classAttr = classes.length ? ` class="${classes.join(" ")}"` : "";
+      return `<tr${classAttr}${href ? ` data-href="${href}"` : ""}>${cells}</tr>`;
     })
     .join("");
 
@@ -453,7 +464,6 @@ function renderSessionsPage(params) {
   const room = params.get("room") || "";
   const start = params.get("start") || "";
   const video = params.get("video") || "";
-  const kind = params.get("kind") || "";
 
   const days = uniqueSorted(MODEL.sessions.map((s) => s.dayKey).filter(Boolean));
   const rooms = uniqueSorted(MODEL.sessions.map((s) => s.room).filter(Boolean));
@@ -465,9 +475,6 @@ function renderSessionsPage(params) {
   if (start) rows = rows.filter((s) => s.startsAt >= start);
   if (video === "yes") rows = rows.filter((s) => s.hasVideo);
   if (video === "no") rows = rows.filter((s) => !s.hasVideo);
-  if (kind === "service") rows = rows.filter((s) => s.isServiceSession);
-  if (kind === "plenum") rows = rows.filter((s) => s.isPlenumSession);
-  if (kind === "talk") rows = rows.filter((s) => !s.isServiceSession && !s.isPlenumSession);
   if (q) {
     rows = rows.filter(
       (s) =>
@@ -517,14 +524,6 @@ function renderSessionsPage(params) {
           .join("")}
       </select>
     </label>
-    <label>Type
-      <select id="f-kind">
-        <option value="">All types</option>
-        <option value="talk" ${kind === "talk" ? "selected" : ""}>Talks</option>
-        <option value="service" ${kind === "service" ? "selected" : ""}>Service sessions</option>
-        <option value="plenum" ${kind === "plenum" ? "selected" : ""}>Plenum</option>
-      </select>
-    </label>
     <label>Video
       <select id="f-video">
         <option value="">Any</option>
@@ -543,7 +542,6 @@ function renderSessionsPage(params) {
   filters.querySelector("#f-day").addEventListener("change", (e) => setQuery("/sessions", { day: e.target.value }));
   filters.querySelector("#f-room").addEventListener("change", (e) => setQuery("/sessions", { room: e.target.value }));
   filters.querySelector("#f-start").addEventListener("change", (e) => setQuery("/sessions", { start: e.target.value }));
-  filters.querySelector("#f-kind").addEventListener("change", (e) => setQuery("/sessions", { kind: e.target.value }));
   filters.querySelector("#f-video").addEventListener("change", (e) => setQuery("/sessions", { video: e.target.value }));
 
   const columns = [
@@ -566,9 +564,11 @@ function renderSessionsPage(params) {
       label: "Speakers",
       sortable: true,
       sortValue: (s) => s.speakers.join(", "),
-      render: (s) => speakerLinksHtml(s.speakers),
+      render: (s) => `<div class="speaker-cell">
+        <div class="tag-list speaker-links">${speakerLinksHtml(s.speakers)}</div>
+        ${s.room ? `<div class="session-room muted">Room ${escapeHtml(s.room)}</div>` : ""}
+      </div>`,
     },
-    { key: "room", label: "Room", sortable: true, sortValue: (s) => s.room, render: (s) => escapeHtml(s.room) },
   ];
 
   const resultCount = renderTable(app, {
@@ -579,6 +579,7 @@ function renderSessionsPage(params) {
     defaultSort: "startsAt",
     defaultDir: "asc",
     rowHref: (s) => `#/sessions/${encodeURIComponent(s.id)}`,
+    stripeKey: (s) => s.startsAt || "",
   });
 
   appendResultSummary(app, resultCount, rows.length !== MODEL.sessions.length);
@@ -974,6 +975,7 @@ function renderAboutPage() {
   app.innerHTML = `
     <div class="page-title"><h1>About</h1></div>
     <p>A static, no-backend browser for the KCDC 2026 session schedule.</p>
+    <p>Source on GitHub: <a href="https://github.com/payne/kcdc2026" target="_blank" rel="noopener">github.com/payne/kcdc2026</a></p>
     <div class="detail-card" id="about-updated"><p class="muted">Checking when this app was last updated&hellip;</p></div>
     <button type="button" class="btn secondary" id="full-reload-btn">Completely reload app</button>
     <p class="muted" style="margin-top:0.5rem;">Clears this app's cached files and service worker, then reloads everything fresh from the network.</p>
