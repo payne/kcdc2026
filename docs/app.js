@@ -202,7 +202,7 @@ function buildModel(sessionsData, youtubesData) {
   const matchesBySession = groupBy(matches, (m) => m.sessionId);
   const matchesBySpeaker = groupBy(matches, (m) => m.speaker);
 
-  const sessions = (sessionsData.sessions || []).map((s) => {
+  const sessions = (sessionsData.sessions || []).filter((s) => s.status === "Accepted").map((s) => {
     const sessionMatches = matchesBySession.get(s.id) || [];
     return {
       id: s.id,
@@ -449,18 +449,18 @@ function renderSessionsPage(params) {
   const q = (params.get("q") || "").trim().toLowerCase();
   const day = params.get("day") || "";
   const room = params.get("room") || "";
-  const status = params.get("status") || "";
+  const start = params.get("start") || "";
   const video = params.get("video") || "";
   const kind = params.get("kind") || "";
 
   const days = uniqueSorted(MODEL.sessions.map((s) => s.dayKey).filter(Boolean));
   const rooms = uniqueSorted(MODEL.sessions.map((s) => s.room).filter(Boolean));
-  const statuses = uniqueSorted(MODEL.sessions.map((s) => s.status).filter(Boolean));
+  const startTimes = uniqueSorted(MODEL.sessions.map((s) => s.startsAt).filter(Boolean));
 
   let rows = MODEL.sessions;
   if (day) rows = rows.filter((s) => s.dayKey === day);
   if (room) rows = rows.filter((s) => s.room === room);
-  if (status) rows = rows.filter((s) => s.status === status);
+  if (start) rows = rows.filter((s) => s.startsAt >= start);
   if (video === "yes") rows = rows.filter((s) => s.hasVideo);
   if (video === "no") rows = rows.filter((s) => !s.hasVideo);
   if (kind === "service") rows = rows.filter((s) => s.isServiceSession);
@@ -502,11 +502,16 @@ function renderSessionsPage(params) {
         ${rooms.map((r) => `<option value="${escapeAttr(r)}" ${r === room ? "selected" : ""}>${escapeHtml(r)}</option>`).join("")}
       </select>
     </label>
-    <label>Status
-      <select id="f-status">
-        <option value="">All statuses</option>
-        ${statuses
-          .map((st) => `<option value="${escapeAttr(st)}" ${st === status ? "selected" : ""}>${escapeHtml(st)}</option>`)
+    <label>Start time
+      <select id="f-start">
+        <option value="">Any time</option>
+        ${startTimes
+          .map(
+            (t) =>
+              `<option value="${escapeAttr(t)}" ${t === start ? "selected" : ""}>${formatDayShort(
+                t.slice(0, 10)
+              )} ${formatTime(t)}</option>`
+          )
           .join("")}
       </select>
     </label>
@@ -535,7 +540,7 @@ function renderSessionsPage(params) {
   );
   filters.querySelector("#f-day").addEventListener("change", (e) => setQuery("/sessions", { day: e.target.value }));
   filters.querySelector("#f-room").addEventListener("change", (e) => setQuery("/sessions", { room: e.target.value }));
-  filters.querySelector("#f-status").addEventListener("change", (e) => setQuery("/sessions", { status: e.target.value }));
+  filters.querySelector("#f-start").addEventListener("change", (e) => setQuery("/sessions", { start: e.target.value }));
   filters.querySelector("#f-kind").addEventListener("change", (e) => setQuery("/sessions", { kind: e.target.value }));
   filters.querySelector("#f-video").addEventListener("change", (e) => setQuery("/sessions", { video: e.target.value }));
 
@@ -562,7 +567,6 @@ function renderSessionsPage(params) {
       render: (s) => speakerLinksHtml(s.speakers),
     },
     { key: "room", label: "Room", sortable: true, sortValue: (s) => s.room, render: (s) => escapeHtml(s.room) },
-    { key: "status", label: "Status", sortable: true, sortValue: (s) => s.status, render: (s) => escapeHtml(s.status) },
     {
       key: "hasVideo",
       label: "Video",
