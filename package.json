@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "serve": "vite --host"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
+    "vite": "^7.0.0"
+  }
+}
