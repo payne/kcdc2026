@@ -321,6 +321,8 @@ function render() {
     console.error(err);
   }
 
+  attachShareButton();
+
   if (focusState) {
     const el = document.getElementById(focusState.id);
     if (el) {
@@ -357,6 +359,48 @@ function setQuery(basePath, updates) {
 
 function navigate(hash) {
   location.hash = hash;
+}
+
+function shareButtonHtml() {
+  return `<button type="button" class="btn secondary share-btn" id="share-page-btn">Share</button>`;
+}
+
+function attachShareButton() {
+  const button = document.getElementById("share-page-btn");
+  if (!button) return;
+  let resetTimer = null;
+  button.addEventListener("click", async () => {
+    clearTimeout(resetTimer);
+    try {
+      await copyTextToClipboard(location.href);
+      button.textContent = "Copied!";
+    } catch (err) {
+      console.error("Clipboard copy failed:", err);
+      button.textContent = "Copy failed";
+    }
+    resetTimer = window.setTimeout(() => {
+      button.textContent = "Share";
+    }, 1600);
+  });
+}
+
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const input = document.createElement("textarea");
+  input.value = text;
+  input.setAttribute("readonly", "");
+  input.style.position = "absolute";
+  input.style.left = "-9999px";
+  document.body.appendChild(input);
+  input.select();
+  input.setSelectionRange(0, input.value.length);
+  const copied = document.execCommand("copy");
+  input.remove();
+  if (!copied) throw new Error("Copy command was rejected");
 }
 
 // ---------------------------------------------------------------------
@@ -488,7 +532,7 @@ function renderSessionsPage(params) {
   app.innerHTML = "";
   const h = document.createElement("div");
   h.innerHTML = `
-    <div class="page-title"><h1>Sessions</h1><span class="count">${MODEL.sessions.length} total</span></div>
+    <div class="page-title"><h1>Sessions</h1><span class="count">${MODEL.sessions.length} total</span>${shareButtonHtml()}</div>
     <p class="muted">KCDC 2026 runs September&nbsp;9&ndash;11, 2026 in Kansas City.</p>
   `;
   app.appendChild(h);
@@ -606,7 +650,7 @@ function renderSessionDetail(id) {
   const wrap = document.createElement("div");
   wrap.innerHTML = `
     <a class="back-link" href="#/sessions">&larr; All sessions</a>
-    <h1>${escapeHtml(s.title)}</h1>
+    <div class="page-title"><h1>${escapeHtml(s.title)}</h1>${shareButtonHtml()}</div>
     <div class="detail-meta">
       <span>${s.startsAt ? formatDayLong(s.dayKey) : "Time TBD"}</span>
       <span>${s.startsAt ? `${formatTime(s.startsAt)}&ndash;${formatTime(s.endsAt)}` : ""}</span>
@@ -678,7 +722,7 @@ function renderSpeakersPage(params) {
 
   app.innerHTML = "";
   const h = document.createElement("div");
-  h.innerHTML = `<div class="page-title"><h1>Speakers</h1><span class="count">${MODEL.speakers.length} total</span></div>`;
+  h.innerHTML = `<div class="page-title"><h1>Speakers</h1><span class="count">${MODEL.speakers.length} total</span>${shareButtonHtml()}</div>`;
   app.appendChild(h);
 
   const filters = document.createElement("div");
@@ -765,7 +809,7 @@ function renderSpeakerDetail(name) {
   const wrap = document.createElement("div");
   wrap.innerHTML = `
     <a class="back-link" href="#/speakers">&larr; All speakers</a>
-    <h1>${escapeHtml(speaker.name)}</h1>
+    <div class="page-title"><h1>${escapeHtml(speaker.name)}</h1>${shareButtonHtml()}</div>
     <h2>Sessions</h2>
     ${
       speaker.sessions.length
@@ -816,7 +860,7 @@ function renderVideosPage(params) {
 
   app.innerHTML = "";
   const h = document.createElement("div");
-  h.innerHTML = `<div class="page-title"><h1>Videos</h1><span class="count">${MODEL.matches.length} matches</span></div>
+  h.innerHTML = `<div class="page-title"><h1>Videos</h1><span class="count">${MODEL.matches.length} matches</span>${shareButtonHtml()}</div>
     <p class="muted">Inferred matches to prior talks by the same speakers &mdash; a stand-in until real 2026 recordings exist.</p>`;
   app.appendChild(h);
 
@@ -914,7 +958,7 @@ function renderExplorePage() {
   const dbName = "kcdc";
 
   app.innerHTML = `
-    <div class="page-title"><h1>Explore the database</h1></div>
+    <div class="page-title"><h1>Explore the database</h1>${shareButtonHtml()}</div>
     <p>This site is backed by a SQLite database (<code>kcdc.db</code>) with the same sessions,
     speakers, and video-match data as the tables above, normalized into a few relational tables.
     <a href="https://github.com/simonw/datasette-lite" target="_blank" rel="noopener">datasette-lite</a>
@@ -973,7 +1017,7 @@ ORDER BY s.starts_at;</code>
 
 function renderAboutPage() {
   app.innerHTML = `
-    <div class="page-title"><h1>About</h1></div>
+    <div class="page-title"><h1>About</h1>${shareButtonHtml()}</div>
     <p>A static, no-backend browser for the KCDC 2026 session schedule.</p>
     <p>Source on GitHub: <a href="https://github.com/payne/kcdc2026" target="_blank" rel="noopener">github.com/payne/kcdc2026</a></p>
     <div class="detail-card" id="about-updated"><p class="muted">Checking when this app was last updated&hellip;</p></div>
@@ -1025,7 +1069,9 @@ async function fullReload() {
 // ---------------------------------------------------------------------
 
 function renderNotFound(raw) {
-  app.innerHTML = `<p class="error">No route for "#${escapeHtml(raw)}".</p><p><a href="#/sessions">Go to sessions &rarr;</a></p>`;
+  app.innerHTML = `<div class="page-title"><h1>Page not found</h1>${shareButtonHtml()}</div><p class="error">No route for "#${escapeHtml(
+    raw
+  )}".</p><p><a href="#/sessions">Go to sessions &rarr;</a></p>`;
 }
 
 // ---------------------------------------------------------------------

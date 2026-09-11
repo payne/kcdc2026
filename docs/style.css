@@ -131,6 +131,10 @@ h1, h2, h3 { line-height: 1.25; }
   margin-bottom: 0.25rem;
 }
 
+.share-btn {
+  margin-left: auto;
+}
+
 .page-title .count {
   color: var(--fg-muted);
   font-size: 0.95rem;
