@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#16213e;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <!-- accent bar -->
+  <rect x="0" y="0" width="1200" height="8" fill="#e63946"/>
+  <!-- KCDC title -->
+  <text x="600" y="240" font-family="system-ui, -apple-system, Arial, sans-serif" font-size="120" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="-2">KCDC 2026</text>
+  <!-- subtitle -->
+  <text x="600" y="320" font-family="system-ui, -apple-system, Arial, sans-serif" font-size="42" fill="#a8b2c1" text-anchor="middle">Sessions · Speakers · Videos</text>
+  <!-- dates -->
+  <text x="600" y="420" font-family="system-ui, -apple-system, Arial, sans-serif" font-size="32" fill="#e63946" text-anchor="middle" font-weight="600">September 9–11, 2026 · Kansas City</text>
+  <!-- url -->
+  <text x="600" y="510" font-family="system-ui, -apple-system, Arial, sans-serif" font-size="26" fill="#6b7280" text-anchor="middle">payne.github.io/kcdc2026</text>
+</svg>
